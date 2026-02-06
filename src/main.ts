@@ -18,15 +18,10 @@ async function bootstrap() {
 
   // Configuração de CORS
   app.enableCors({
-    origin: [
-      'http://localhost:3000', 
-      'http://localhost:3002',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3002'
-    ],
+    origin: true, // Permite qualquer origem temporariamente para facilitar o deploy (ou configure explicitamente)
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Prefixo global da API
