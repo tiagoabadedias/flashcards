@@ -20,7 +20,7 @@ export class AuthController {
     const { accessToken, user } = await this.authService.googleLogin(req);
     
     // Redireciona para o frontend com o token
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://frontflashcards.vercel.app';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://www.explicaai.co';
     
     // Codificamos o user para passar na URL (não é o ideal para dados sensíveis, mas para nome/avatar ok)
     // O ideal seria apenas o token e o front busca o user com /me, mas vamos simplificar
