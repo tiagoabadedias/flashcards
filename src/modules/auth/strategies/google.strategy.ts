@@ -9,7 +9,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: configService.get<string>('GOOGLE_CLIENT_ID') || 'mock_client_id',
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET') || 'mock_client_secret',
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL') || 'http://localhost:3001/api/v1/auth/google/redirect',
+      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL') || 'https://flashcards-sooty-ten.vercel.app/api/v1/auth/google/redirect',
       scope: ['email', 'profile'],
     });
   }

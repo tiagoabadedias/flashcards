@@ -18,7 +18,7 @@ async function bootstrap() {
 
   // Configuração de CORS
   app.enableCors({
-    origin: true, // Permite qualquer origem temporariamente para facilitar o deploy (ou configure explicitamente)
+    origin: ['https://frontflashcards.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
