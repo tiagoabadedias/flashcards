@@ -72,7 +72,7 @@ async function insertData() {
     }
     
     console.log('✨ Dados inseridos com sucesso!');
-    console.log('🌐 Teste no frontend: http://localhost:3000/questions');
+    console.log('🌐 Teste no frontend: https://flashcards-sooty-ten.vercel.app/questions');
     
   } catch (error) {
     console.error('❌ Erro geral:', error.message);

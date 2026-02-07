@@ -70,7 +70,7 @@ async function insertTestGroups() {
   }
 
   console.log('✨ Inserção de grupos concluída!');
-  console.log('🌐 Acesse: http://localhost:3000/groups');
+  console.log('🌐 Acesse: https://flashcards-sooty-ten.vercel.app/groups');
 }
 
 insertTestGroups();

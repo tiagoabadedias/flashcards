@@ -801,7 +801,8 @@ export class CampaignService {
         sentAt: interaction.createdAt,
         answeredAt: interaction.answeredAt,
         status: interaction.answeredAt ? 'answered' : 'pending',
-        feedback: interaction.feedback
+        feedback: interaction.feedback,
+        urlAudioAluno: interaction.urlAudioAluno // Incluindo a URL do áudio
       }))
     };
   }

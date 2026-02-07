@@ -20,7 +20,7 @@ export class AuthController {
     const { accessToken, user } = await this.authService.googleLogin(req);
     
     // Redireciona para o frontend com o token
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://flashcards-sooty-ten.vercel.app';
     
     // Codificamos o user para passar na URL (não é o ideal para dados sensíveis, mas para nome/avatar ok)
     // O ideal seria apenas o token e o front busca o user com /me, mas vamos simplificar

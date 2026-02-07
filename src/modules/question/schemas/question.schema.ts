@@ -65,6 +65,9 @@ export class Question {
   @Prop({ type: String })
   resposta: string; // Feedback do professor
 
+  @Prop({ type: String })
+  urlAudioAluno: string; // URL do áudio enviado pelo aluno
+
   @Prop({ default: Date.now })
   createdAt: Date;
 
