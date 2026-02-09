@@ -40,6 +40,9 @@ export class Campaign {
   @Prop({ default: true })
   isActive: boolean;
 
+  @Prop({ default: false })
+  hasStarted: boolean;
+
   @Prop({ type: Date })
   startDate: Date;
 

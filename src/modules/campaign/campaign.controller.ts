@@ -88,6 +88,11 @@ export class CampaignController {
     return this.campaignService.deactivate(id, req.user.userId);
   }
 
+  @Patch(':id/start')
+  markAsStarted(@Param('id') id: string, @Req() req) {
+    return this.campaignService.markAsStarted(id, req.user.userId);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @Req() req) {

@@ -112,6 +112,20 @@ export class CampaignService {
     return campaign;
   }
 
+  async markAsStarted(id: string, userId: string) {
+    const campaign = await this.campaignModel.findOneAndUpdate(
+      { _id: id, userId },
+      { hasStarted: true },
+      { new: true }
+    ).exec();
+
+    if (!campaign) {
+      throw new NotFoundException(`Campanha com ID ${id} não encontrada`);
+    }
+
+    return campaign;
+  }
+
   async remove(id: string, userId: string) {
     const deletedCampaign = await this.campaignModel.findOneAndDelete({ _id: id, userId }).exec();
 
