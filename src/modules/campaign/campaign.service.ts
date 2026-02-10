@@ -71,6 +71,21 @@ export class CampaignService {
     return campaign;
   }
 
+  async findOnePublic(id: string) {
+    // Busca sem filtrar por userId, pois é público
+    // Retorna apenas dados seguros
+    const campaign = await this.campaignModel
+      .findOne({ _id: id })
+      .select('name description isActive startDate endDate hasStarted')
+      .exec();
+
+    if (!campaign) {
+      throw new NotFoundException(`Campanha com ID ${id} não encontrada`);
+    }
+
+    return campaign;
+  }
+
   async update(id: string, updateCampaignDto: UpdateCampaignDto, userId: string) {
     const updatedCampaign = await this.campaignModel
       .findOneAndUpdate({ _id: id, userId }, updateCampaignDto, { new: true })
