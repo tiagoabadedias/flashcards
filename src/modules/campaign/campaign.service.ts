@@ -27,11 +27,53 @@ export class CampaignService {
   ) {}
 
   async create(createCampaignDto: CreateCampaignDto, userId: string) {
+    console.log('Creating campaign with DTO:', JSON.stringify(createCampaignDto, null, 2));
+    
+    // 1. Separar questões do resto do DTO
+    const { questions, ...campaignData } = createCampaignDto;
+    
+    // 2. Criar e salvar a campanha inicialmente sem as questões
     const campaign = new this.campaignModel({
-      ...createCampaignDto,
-      userId
+      ...campaignData,
+      userId,
+      questions: [] // Garante que inicia vazio
     });
-    return campaign.save();
+
+    let savedCampaign = await campaign.save();
+
+    // 3. Se houver perguntas, processar e salvar novamente
+    if (questions && Array.isArray(questions) && questions.length > 0) {
+      console.log(`Adding ${questions.length} questions to new campaign ${savedCampaign._id}`);
+      
+      console.log('Questions:', JSON.stringify(questions, null, 2));
+
+
+      // for (const question of questions) {
+      //   const questionDto = new CreateQuestionForCampaignDto();
+      //     questionDto.question = question.question;
+      //     questionDto.answer = question.answer;
+      //     questionDto.explanation = question.explanation;
+      //     questionDto.isActive = question.isActive ?? true;
+
+      //     await this.createCampaignQuestion(savedCampaign._id.toString(), questionDto, userId);
+      // }
+   
+
+      const questionsToAdd = questions.map(q => ({
+        question: q.question,
+        answer: q.answer,
+        explanation: q.explanation,
+        isActive: q.isActive ?? true,
+        _id: new Types.ObjectId(),
+        createdAt: new Date()
+      })); 
+
+      savedCampaign.questions = questionsToAdd;
+      console.log('Questions after update:', JSON.stringify(savedCampaign.questions, null, 2));
+      return savedCampaign.save();
+    }
+
+    return savedCampaign;
   }
 
   async findAll(userId: string) {
@@ -879,6 +921,7 @@ export class CampaignService {
     
     // Adicionar questão ao array da campanha
     campaign.questions.push(newQuestion);
+    console.log('newQuestion atualizada:', newQuestion);
     
     // Salvar campanha com nova questão
     await campaign.save();

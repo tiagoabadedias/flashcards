@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray, IsDateString, IsMongoId, ValidateIf } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray, IsDateString, IsMongoId, ValidateIf, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { CreateQuestionForCampaignDto } from './create-question-for-campaign.dto';
 
 export class CreateCampaignDto {
   @IsString({ message: 'Nome deve ser uma string' })
@@ -28,4 +29,8 @@ export class CreateCampaignDto {
   @IsOptional()
   @Transform(({ value }) => value || [])
   groups?: string[] = [];
+
+  @IsArray({ message: 'Questions deve ser um array' })
+  @IsOptional()
+  questions?: any[]; // Revertendo para any[] para garantir compatibilidade temporária
 }
