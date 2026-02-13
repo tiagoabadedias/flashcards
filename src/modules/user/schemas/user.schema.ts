@@ -17,6 +17,19 @@ export class User {
   @Prop()
   avatar: string;
 
+  @Prop({
+    type: Object,
+    default: {
+      version: 1,
+      completed: false,
+    },
+  })
+  onboarding: {
+    version: number;
+    completed: boolean;
+    completedAt?: Date;
+  };
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

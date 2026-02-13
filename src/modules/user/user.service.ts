@@ -7,6 +7,10 @@ import { User, UserDocument } from './schemas/user.schema';
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
+  async findById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findById(id).exec();
+  }
+
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
   }
@@ -42,5 +46,23 @@ export class UserService {
     }
 
     return user;
+  }
+
+  async completeOnboarding(userId: string, onboardingVersion: number): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            onboarding: {
+              version: onboardingVersion,
+              completed: true,
+              completedAt: new Date(),
+            },
+          },
+        },
+        { new: true },
+      )
+      .exec();
   }
 }
