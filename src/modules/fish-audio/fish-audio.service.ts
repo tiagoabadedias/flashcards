@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as FormData from 'form-data';
+import FormData = require('form-data');
 
 export interface BufferedFile {
   fieldname: string;
