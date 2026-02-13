@@ -7,6 +7,8 @@ import { GroupModule } from './modules/group/group.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { FishAudioModule } from './modules/fish-audio/fish-audio.module';
+import { StudentModule } from './modules/student/student.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -34,6 +36,8 @@ import { AppService } from './app.service';
     QuestionModule,
     GroupModule,
     UploadModule,
+    FishAudioModule,
+    StudentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
