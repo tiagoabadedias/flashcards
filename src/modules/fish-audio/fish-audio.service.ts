@@ -21,22 +21,27 @@ export class FishAudioService {
     this.apiKey = this.configService.get<string>('FISH_AUDIO_API_TOKEN');
   }
 
-  async createVoiceClone(file: BufferedFile, title: string) {
+  async createVoiceClone(files: BufferedFile[], title: string, texts: string[]) {
     if (!this.apiKey) {
       throw new InternalServerErrorException('FISH_AUDIO_API_TOKEN is not configured');
     }
 
     try {
       const formData = new FormData();
-      formData.append('voices', file.buffer, {
-        filename: file.originalname,
-        contentType: file.mimetype,
-      });
+      for (const file of files) {
+        formData.append('voices', file.buffer, {
+          filename: file.originalname,
+          contentType: file.mimetype,
+        });
+      }
       formData.append('title', title);
       formData.append('visibility', 'private');
       formData.append('type', 'tts');
       formData.append('train_mode', 'fast');
       formData.append('enhance_audio_quality', 'true');
+      for (const text of texts) {
+        formData.append('texts', text);
+      }
 
       const response = await axios.post(`${this.apiUrl}/model`, formData, {
         headers: {
@@ -49,7 +54,7 @@ export class FishAudioService {
     } catch (error) {
       console.error('Error creating voice clone:', error.response?.data || error.message);
       throw new InternalServerErrorException(
-        `Failed to create voice clone: ${error.response?.data?.message || error.message}`
+        `Failed to create voice clone: ${error.response?.data?.message || error.message}`,
       );
     }
   }
