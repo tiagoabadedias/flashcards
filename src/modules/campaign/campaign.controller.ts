@@ -59,6 +59,13 @@ export class CampaignController {
     return await this.campaignService.findAll(req.user.userId);
   }
 
+  @Get('analytics/by-group')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  getAnalyticsByGroup(@Query() filters: AnalyticsFiltersDto, @Req() req) {
+    return this.campaignService.getAnalyticsByGroup(filters, req.user.userId);
+  }
+
   // Rota PÚBLICA para QR Code - deve vir antes de :id para evitar conflito se fosse o caso, 
   // mas como tem /public no final, o nest resolve bem.
   // Na verdade, :id captura tudo, então :id/public seria capturado por :id se não tomar cuidado?

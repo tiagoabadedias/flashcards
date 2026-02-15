@@ -807,6 +807,288 @@ export class CampaignService {
     };
   }
 
+  async getAnalyticsByGroup(filters: AnalyticsFiltersDto = {}, userId: string) {
+    const campaigns = await this.campaignModel
+      .find({ userId })
+      .exec();
+
+    const normalizePhoneNumber = (value: unknown): string => {
+      const digitsOnly = String(value ?? '').replace(/\D/g, '');
+      if (!digitsOnly) return '';
+      if (digitsOnly.startsWith('55') && digitsOnly.length > 11) return digitsOnly.slice(2);
+      return digitsOnly;
+    };
+
+    const campaignToGroupIds = new Map<string, string[]>();
+    const groupInfo = new Map<
+      string,
+      { id: string; name: string; isActive: boolean; participants: string[]; participantsSetNormalized: Set<string> }
+    >();
+    const groupCampaigns = new Map<
+      string,
+      { id: string; name: string; isActive: boolean; startDate?: any; endDate?: any }[]
+    >();
+
+    const allGroupIds = new Set<string>();
+
+    for (const campaign of campaigns) {
+      const campaignId = campaign._id.toString();
+      const groups = Array.isArray(campaign.groups) ? (campaign.groups as any[]).filter(Boolean) : [];
+
+      const groupIds: string[] = [];
+      for (const group of groups) {
+        const groupId = group?._id?.toString?.() ?? group?.toString?.();
+        if (!groupId) continue;
+
+        groupIds.push(groupId);
+        allGroupIds.add(groupId);
+
+        const existingCampaigns = groupCampaigns.get(groupId) ?? [];
+        if (!existingCampaigns.some((c) => c.id === campaignId)) {
+          existingCampaigns.push({
+            id: campaignId,
+            name: campaign.name,
+            isActive: Boolean(campaign.isActive),
+            startDate: campaign.startDate,
+            endDate: campaign.endDate,
+          });
+          groupCampaigns.set(groupId, existingCampaigns);
+        }
+      }
+
+      campaignToGroupIds.set(campaignId, groupIds);
+    }
+
+    if (allGroupIds.size > 0) {
+      const groupModel = this.campaignModel.db.model('Group');
+      const groups = await groupModel
+        .find({ _id: { $in: Array.from(allGroupIds) }, userId })
+        .select('_id name isActive participants')
+        .exec();
+
+      for (const group of groups as any[]) {
+        const groupId = group._id.toString();
+        const participants: string[] = Array.isArray(group.participants)
+          ? group.participants.map((p: unknown) => String(p))
+          : [];
+        const participantsSetNormalized: Set<string> = new Set(
+          participants
+            .map((p) => normalizePhoneNumber(p))
+            .filter((p): p is string => Boolean(p)),
+        );
+
+        groupInfo.set(groupId, {
+          id: groupId,
+          name: group.name ?? 'Sem nome',
+          isActive: group.isActive ?? true,
+          participants,
+          participantsSetNormalized,
+        });
+      }
+    }
+
+    const campaignIds = Array.from(campaignToGroupIds.keys());
+    if (campaignIds.length === 0) return [];
+
+    const campaignObjectIds = campaignIds.map((id) => Types.ObjectId.createFromHexString(id));
+    const questionQuery: any = {
+      $or: [
+        { campaign: { $in: campaignIds } },
+        { 'campaign._id': { $in: campaignIds } },
+        { campaign: { $in: campaignObjectIds } },
+      ],
+      userId,
+    };
+
+    if (filters.startDate || filters.endDate) {
+      questionQuery.createdAt = {};
+      if (filters.startDate) {
+        questionQuery.createdAt.$gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        questionQuery.createdAt.$lte = new Date(filters.endDate);
+      }
+    } else if (filters.period) {
+      const now = new Date();
+      let daysBack = 30;
+      let daysForward = 1;
+
+      if (filters.period === '7d') {
+        daysBack = 7;
+        daysForward = 1;
+      } else if (filters.period === '15d') {
+        daysBack = 15;
+        daysForward = 1;
+      }
+
+      const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+      const endDate = new Date(now.getTime() + daysForward * 24 * 60 * 60 * 1000);
+      questionQuery.createdAt = {
+        $gte: startDate,
+        $lte: endDate,
+      };
+    }
+
+    const questionModel = this.campaignModel.db.model('Question');
+    const allQuestionInstances = await questionModel.find(questionQuery).exec();
+
+    type Accumulator = {
+      sent: number;
+      answered: number;
+      studentsReceived: Set<string>;
+      studentsAnswered: Set<string>;
+      scoreSum: number;
+      scoreCount: number;
+      responseTimeSumMinutes: number;
+      responseTimeCount: number;
+    };
+
+    const createAccumulator = (): Accumulator => ({
+      sent: 0,
+      answered: 0,
+      studentsReceived: new Set<string>(),
+      studentsAnswered: new Set<string>(),
+      scoreSum: 0,
+      scoreCount: 0,
+      responseTimeSumMinutes: 0,
+      responseTimeCount: 0,
+    });
+
+    const groupTotals = new Map<string, Accumulator>();
+    const groupCampaignTotals = new Map<string, Map<string, Accumulator>>();
+
+    const getOrCreateGroupTotal = (groupId: string) => {
+      const existing = groupTotals.get(groupId);
+      if (existing) return existing;
+      const created = createAccumulator();
+      groupTotals.set(groupId, created);
+      return created;
+    };
+
+    const getOrCreateGroupCampaignTotal = (groupId: string, campaignId: string) => {
+      const byCampaign = groupCampaignTotals.get(groupId) ?? new Map<string, Accumulator>();
+      const existing = byCampaign.get(campaignId);
+      if (existing) return existing;
+      const created = createAccumulator();
+      byCampaign.set(campaignId, created);
+      groupCampaignTotals.set(groupId, byCampaign);
+      return created;
+    };
+
+    for (const q of allQuestionInstances as any[]) {
+      const campaignId =
+        (typeof q.campaign === 'object' && q.campaign?._id ? q.campaign._id.toString() : q.campaign?.toString?.()) ??
+        null;
+      if (!campaignId) continue;
+
+      const groupIds = campaignToGroupIds.get(campaignId);
+      if (!groupIds || groupIds.length === 0) continue;
+
+      const phoneNumber = q.phoneNumber;
+      const phoneNumberNormalized = normalizePhoneNumber(phoneNumber);
+      if (!phoneNumberNormalized) continue;
+
+      for (const groupId of groupIds) {
+        const group = groupInfo.get(groupId);
+        if (!group) continue;
+        if (!group.participantsSetNormalized.has(phoneNumberNormalized)) continue;
+
+        const total = getOrCreateGroupTotal(groupId);
+        const perCampaign = getOrCreateGroupCampaignTotal(groupId, campaignId);
+
+        total.sent += 1;
+        perCampaign.sent += 1;
+        total.studentsReceived.add(phoneNumberNormalized);
+        perCampaign.studentsReceived.add(phoneNumberNormalized);
+
+        if (q.answeredAt != null) {
+          total.answered += 1;
+          perCampaign.answered += 1;
+          total.studentsAnswered.add(phoneNumberNormalized);
+          perCampaign.studentsAnswered.add(phoneNumberNormalized);
+
+          const score = parseFloat(q.nota);
+          if (!Number.isNaN(score)) {
+            total.scoreSum += score;
+            total.scoreCount += 1;
+            perCampaign.scoreSum += score;
+            perCampaign.scoreCount += 1;
+          }
+
+          if (q.createdAt && q.answeredAt) {
+            const created = new Date(q.createdAt).getTime();
+            const answered = new Date(q.answeredAt).getTime();
+            const diffMinutes = (answered - created) / 1000 / 60;
+            if (!Number.isNaN(diffMinutes) && Number.isFinite(diffMinutes)) {
+              total.responseTimeSumMinutes += diffMinutes;
+              total.responseTimeCount += 1;
+              perCampaign.responseTimeSumMinutes += diffMinutes;
+              perCampaign.responseTimeCount += 1;
+            }
+          }
+        }
+      }
+    }
+
+    const round2 = (value: number) => Math.round(value * 100) / 100;
+    const formatAverageResponseTime = (avgResponseTimeMinutes: number) =>
+      avgResponseTimeMinutes > 60
+        ? `${Math.round(avgResponseTimeMinutes / 60)}h ${Math.round(avgResponseTimeMinutes % 60)}m`
+        : `${Math.round(avgResponseTimeMinutes)}min`;
+
+    const toOverview = (acc: Accumulator, totalGroupParticipants: number) => {
+      const completionRate = acc.sent > 0 ? (acc.answered / acc.sent) * 100 : 0;
+      const participationRate =
+        totalGroupParticipants > 0 ? (acc.studentsAnswered.size / totalGroupParticipants) * 100 : 0;
+      const averageScore = acc.scoreCount > 0 ? (acc.scoreSum / acc.scoreCount) * 10 : 0;
+      const avgResponseTimeMinutes = acc.responseTimeCount > 0 ? acc.responseTimeSumMinutes / acc.responseTimeCount : 0;
+
+      return {
+        totalStudents: acc.studentsAnswered.size,
+        totalStudentsReceived: acc.studentsReceived.size,
+        sentQuestions: acc.sent,
+        answeredQuestions: acc.answered,
+        completionRate: round2(completionRate),
+        averageScore: round2(averageScore),
+        averageResponseTime: formatAverageResponseTime(avgResponseTimeMinutes),
+        participationRate: round2(participationRate),
+        totalGroupParticipants,
+      };
+    };
+
+    return Array.from(groupInfo.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((group) => {
+        const totalGroupParticipants = group.participants.length;
+        const totalAcc = groupTotals.get(group.id) ?? createAccumulator();
+
+        const campaignsForGroup = (groupCampaigns.get(group.id) ?? [])
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((campaign) => {
+            const acc =
+              groupCampaignTotals.get(group.id)?.get(campaign.id) ??
+              createAccumulator();
+
+            return {
+              ...campaign,
+              overview: toOverview(acc, totalGroupParticipants),
+            };
+          });
+
+        return {
+          group: {
+            id: group.id,
+            name: group.name,
+            isActive: group.isActive,
+            totalParticipants: totalGroupParticipants,
+          },
+          overview: toOverview(totalAcc, totalGroupParticipants),
+          campaigns: campaignsForGroup,
+        };
+      });
+  }
+
   // Método temporário simplificado para debug
   async testQuestionQuery(campaignId: string, userId: string) {
     try {
