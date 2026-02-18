@@ -12,6 +12,12 @@ export class CampaignQuestion {
   @Prop({ required: true, trim: true })
   answer: string;
 
+  @Prop({ default: 'audio', enum: ['audio', 'buttons'] })
+  responseMode: 'audio' | 'buttons';
+
+  @Prop({ type: [String], default: [] })
+  options: string[];
+
   @Prop({ type: String, trim: true })
   explanation?: string;
 

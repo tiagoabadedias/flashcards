@@ -62,11 +62,14 @@ export class CampaignService {
       const questionsToAdd = questions.map(q => ({
         question: q.question,
         answer: q.answer,
+        responseMode: q.responseMode ?? 'audio',
+        options: this.normalizeOptions(q.options),
         explanation: q.explanation,
         isActive: q.isActive ?? true,
         _id: new Types.ObjectId(),
         createdAt: new Date()
       })); 
+      questionsToAdd.forEach((q) => this.validateCampaignQuestion(q));
 
       savedCampaign.questions = questionsToAdd;
       console.log('Questions after update:', JSON.stringify(savedCampaign.questions, null, 2));
@@ -1196,10 +1199,13 @@ export class CampaignService {
       _id: new Types.ObjectId(),
       question: createQuestionDto.question,
       answer: createQuestionDto.answer,
+      responseMode: createQuestionDto.responseMode ?? 'audio',
+      options: this.normalizeOptions(createQuestionDto.options),
       explanation: createQuestionDto.explanation,
       isActive: createQuestionDto.isActive ?? true,
       createdAt: new Date()
     };
+    this.validateCampaignQuestion(newQuestion);
     
     // Adicionar questão ao array da campanha
     campaign.questions.push(newQuestion);
@@ -1229,6 +1235,16 @@ export class CampaignService {
     // Atualizar questão
     const question = campaign.questions[questionIndex];
     Object.assign(question, updateQuestionDto);
+    if ((updateQuestionDto as any).options !== undefined) {
+      (question as any).options = this.normalizeOptions((updateQuestionDto as any).options);
+    }
+    if (!(question as any).responseMode) {
+      (question as any).responseMode = 'audio';
+    }
+    if (!(question as any).options) {
+      (question as any).options = [];
+    }
+    this.validateCampaignQuestion(question as any);
     
     // Salvar campanha
     await campaign.save();
@@ -1258,5 +1274,55 @@ export class CampaignService {
     await campaign.save();
     
     return { message: 'Questão deletada com sucesso' };
+  }
+
+  private normalizeOptions(options: unknown): string[] {
+    if (Array.isArray(options)) {
+      return options.map((v) => String(v ?? '').trim()).filter(Boolean);
+    }
+    if (typeof options === 'string') {
+      const raw = options.trim();
+      if (!raw) return [];
+      if (raw.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            return parsed.map((v) => String(v ?? '').trim()).filter(Boolean);
+          }
+        } catch {
+          return [];
+        }
+      }
+      return [raw];
+    }
+    return [];
+  }
+
+  private validateCampaignQuestion(question: {
+    responseMode?: 'audio' | 'buttons' | string;
+    options?: string[];
+    answer?: string;
+  }) {
+    const mode = question.responseMode ?? 'audio';
+    if (mode !== 'audio' && mode !== 'buttons') {
+      throw new BadRequestException('Modo de resposta inválido');
+    }
+
+    if (mode === 'buttons') {
+      const options = Array.isArray(question.options) ? question.options : [];
+      if (options.length < 2) {
+        throw new BadRequestException('Opções deve ter pelo menos 2 itens');
+      }
+      if (options.length > 10) {
+        throw new BadRequestException('Opções deve ter no máximo 10 itens');
+      }
+      const answer = typeof question.answer === 'string' ? question.answer.trim() : '';
+      if (!answer) {
+        throw new BadRequestException('Resposta é obrigatória');
+      }
+      if (!options.includes(answer)) {
+        throw new BadRequestException('Resposta deve ser uma das opções');
+      }
+    }
   }
 }
